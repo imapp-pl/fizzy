@@ -159,6 +159,16 @@ Instance instantiate(const Module& module)
     // NOTE: fill it with zeroes
     bytes memory(memory_min * page_size, 0);
 
+    // Fill out memory based on data segments
+    for (const auto& data : module.datasec)
+    {
+        // FIXME: assert in parser
+        assert(data.memidx == 0);
+        // NOTE: these instructions can overlap
+        assert((data.offset + data.init.size()) <= (memory_max * page_size));
+        std::memcpy(memory.data() + data.offset, data.init.data(), data.init.size());
+    }
+
     // TODO: add imported globals first
     std::vector<uint64_t> globals;
     globals.reserve(module.globalsec.size());
