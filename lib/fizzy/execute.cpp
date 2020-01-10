@@ -169,9 +169,11 @@ Instance instantiate(const Module& module)
         memory_min = module.memorysec[0].limits.min;
         memory_max = module.memorysec[0].limits.max;
         // FIXME: better error handling
+        /*
         if (memory_max > memory_pages_limit)
             throw std::runtime_error("Cannot exceed hard memory limit of " +
                                      std::to_string(memory_pages_limit * page_size) + " bytes");
+        */
     }
     else
     {
