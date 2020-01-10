@@ -282,6 +282,11 @@ execution_result execute(Instance& instance, FuncIdx function, std::vector<uint6
             assert(stack.size() == label.stack_height);
             break;
         }
+        case Instr::return_:
+        {
+            labels.clear();
+            goto end;
+        }
         case Instr::drop:
         {
             stack.pop();
