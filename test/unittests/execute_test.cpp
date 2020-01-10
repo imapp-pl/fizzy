@@ -1441,3 +1441,23 @@ TEST(execute, start_section)
     EXPECT_EQ(ret[0], 42);
     EXPECT_EQ(instance.memory.substr(0, 4), from_hex("2a000000"));
 }
+
+TEST(execute, imported_function)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32, ValType::i32}, {ValType::i32}});
+    module.importsec.emplace_back(Import{"mod", "foo", ImportType::Function, {0}});
+
+    auto host_foo = [](const std::vector<uint64_t>& args) -> execution_result {
+        auto res = args[0] + args[1];
+        return {false, std::vector<uint64_t>{res}};
+    };
+
+    auto instance = instantiate(module, {host_foo});
+
+    const auto [trap, ret] = execute(instance, 0, {20, 22});
+
+    ASSERT_FALSE(trap);
+    ASSERT_EQ(ret.size(), 1);
+    EXPECT_EQ(ret[0], 42);
+}
