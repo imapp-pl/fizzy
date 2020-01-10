@@ -18,6 +18,9 @@ enum class ValType : uint8_t
     i64 = 0x7e,
 };
 
+// The byte meaning an empty type list.
+constexpr uint8_t EmptyType = 0x40;
+
 // https://webassembly.github.io/spec/core/binary/types.html#binary-functype
 struct FuncType
 {
@@ -50,6 +53,7 @@ enum class Instr : uint8_t
 {
     unreachable = 0x00,
     nop = 0x01,
+    loop = 0x03,
     end = 0x0b,
     drop = 0x1a,
     select = 0x1b,

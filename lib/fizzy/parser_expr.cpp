@@ -94,6 +94,14 @@ parser_result<Code> parse_expr(const uint8_t* pos)
         case Instr::i64_extend_i32_u:
             break;
 
+        case Instr::loop:
+        {
+            const auto type = *pos++;
+            if (type != EmptyType)
+                throw parser_error{"loop can only has type arity 0"};
+            break;
+        }
+
         case Instr::local_get:
         case Instr::local_set:
         case Instr::local_tee:
