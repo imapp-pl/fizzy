@@ -146,6 +146,14 @@ inline uint64_t popcnt64(uint64_t value) noexcept
 {
     return static_cast<uint64_t>(__builtin_popcountll(value));
 }
+
+struct label_context
+{
+    const Instr* pc = nullptr;
+    const uint8_t* immediate = nullptr;
+    size_t arity = 0;
+    size_t stack_height = 0;
+};
 }  // namespace
 
 Instance instantiate(const Module& module)
@@ -212,6 +220,8 @@ execution_result execute(Instance& instance, FuncIdx function, std::vector<uint6
     // TODO: preallocate fixed stack depth properly
     uint64_stack stack;
 
+    std::vector<label_context> labels;
+
     bool trap = false;
 
     const Instr* pc = code.instructions.data();
@@ -227,8 +237,51 @@ execution_result execute(Instance& instance, FuncIdx function, std::vector<uint6
             goto end;
         case Instr::nop:
             break;
+        case Instr::block:
+        {
+            const auto arity = read<uint8_t>(immediates);
+            assert(arity == 0);
+            const auto target_pc = read<uint32_t>(immediates);
+            const auto target_imm = read<uint32_t>(immediates);
+            label_context label{code.instructions.data() + target_pc,
+                code.immediates.data() + target_imm, arity, stack.size()};
+            labels.push_back(label);
+            break;
+        }
+        case Instr::loop:
+        {
+            label_context label{pc - 1, immediates, 0, stack.size()};  // Target this instruction.
+            labels.push_back(label);
+            break;
+        }
         case Instr::end:
-            goto end;
+        {
+            if (!labels.empty())
+                labels.pop_back();
+            else
+                goto end;
+            break;
+        }
+        case Instr::br:
+        case Instr::br_if:
+        {
+            const auto labelidx = read<uint32_t>(immediates);
+
+            // Check condition for br_if.
+            if (instruction == Instr::br_if && static_cast<uint32_t>(stack.pop()) == 0)
+                break;
+
+            const auto i = labels.size() - labelidx - 1;  // Implementation index in the vector.
+            const auto label = labels[i];                 // Take labelidx'th from the top.
+            labels.resize(i);                             // Pop labelidx number of labels.
+
+            pc = label.pc;
+            immediates = label.immediate;
+
+            // FIXME: handle arity + stack_height ?
+            assert(stack.size() == label.stack_height);
+            break;
+        }
         case Instr::drop:
         {
             stack.pop();
@@ -744,6 +797,7 @@ execution_result execute(Instance& instance, FuncIdx function, std::vector<uint6
     }
 
 end:
+    assert(labels.empty());
     // move allows to return derived uint64_stack instance into base vector<uint64_t> value
     return {trap, std::move(stack)};
 }
