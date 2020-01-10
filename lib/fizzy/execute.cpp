@@ -1,4 +1,5 @@
 #include "execute.hpp"
+#include "limits.hpp"
 #include "types.hpp"
 #include <cassert>
 #include <cstdint>
@@ -8,10 +9,6 @@ namespace fizzy
 {
 namespace
 {
-constexpr unsigned page_size = 65536;
-// Set hard limit of 256MB of memory.
-constexpr auto memory_pages_limit = (256 * 1024 * 1024ULL) / page_size;
-
 class uint64_stack : public std::vector<uint64_t>
 {
 public:
