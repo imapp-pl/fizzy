@@ -438,6 +438,23 @@ TEST(parser, code_section_with_basic_instructions)
     EXPECT_EQ(module.codesec[0].immediates, from_hex("010000000200000003000000"));
 }
 
+TEST(parser, data_section)
+{
+    const auto section_contents =
+        bytes{0x02, 0x00, 0x01, 0x02, 0xaa, 0xff, 0x00, 0x02, 0x02, 0x55, 0x55};
+    const auto bin =
+        bytes{wasm_prefix} + uint8_t{11} + uint8_t(section_contents.size()) + section_contents;
+
+    const auto module = parse(bin);
+    ASSERT_EQ(module.datasec.size(), 2);
+    EXPECT_EQ(module.datasec[0].memidx, 0);
+    EXPECT_EQ(module.datasec[0].offset, 1);
+    EXPECT_EQ(module.datasec[0].init, from_hex("aaff"));
+    EXPECT_EQ(module.datasec[1].memidx, 0);
+    EXPECT_EQ(module.datasec[1].offset, 2);
+    EXPECT_EQ(module.datasec[1].init, from_hex("5555"));
+}
+
 TEST(parser, milestone1)
 {
     /*
