@@ -1449,8 +1449,7 @@ TEST(execute, imported_function)
     module.importsec.emplace_back(Import{"mod", "foo", ImportType::Function, {0}});
 
     auto host_foo = [](Instance&, const std::vector<uint64_t>& args) -> execution_result {
-        auto res = args[0] + args[1];
-        return {false, std::vector<uint64_t>{res}};
+        return {false, {args[0] + args[1]}};
     };
 
     auto instance = instantiate(module, {host_foo});
@@ -1460,4 +1459,137 @@ TEST(execute, imported_function)
     ASSERT_FALSE(trap);
     ASSERT_EQ(ret.size(), 1);
     EXPECT_EQ(ret[0], 42);
+}
+
+TEST(execute, imported_two_functions)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32, ValType::i32}, {ValType::i32}});
+    module.importsec.emplace_back(Import{"mod", "foo1", ImportType::Function, {0}});
+    module.importsec.emplace_back(Import{"mod", "foo2", ImportType::Function, {0}});
+
+    auto host_foo1 = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args[0] + args[1]}};
+    };
+    auto host_foo2 = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args[0] * args[1]}};
+    };
+
+    auto instance = instantiate(module, {host_foo1, host_foo2});
+
+    const auto [trap1, ret1] = execute(instance, 0, {20, 22});
+
+    ASSERT_FALSE(trap1);
+    ASSERT_EQ(ret1.size(), 1);
+    EXPECT_EQ(ret1[0], 42);
+
+    const auto [trap2, ret2] = execute(instance, 1, {20, 22});
+
+    ASSERT_FALSE(trap2);
+    ASSERT_EQ(ret2.size(), 1);
+    EXPECT_EQ(ret2[0], 440);
+}
+
+TEST(execute, imported_functions_and_regular_one)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32, ValType::i32}, {ValType::i32}});
+    module.typesec.emplace_back(FuncType{{ValType::i64}, {ValType::i64}});
+    module.importsec.emplace_back(Import{"mod", "foo1", ImportType::Function, {0}});
+    module.importsec.emplace_back(Import{"mod", "foo2", ImportType::Function, {0}});
+    module.codesec.emplace_back(Code{0, {Instr::i32_const, Instr::end}, {42, 0, 42, 0}});
+
+    auto host_foo1 = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args[0] + args[1]}};
+    };
+    auto host_foo2 = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args[0] * args[0]}};
+    };
+
+    auto instance = instantiate(module, {host_foo1, host_foo2});
+
+    const auto [trap1, ret1] = execute(instance, 0, {20, 22});
+
+    ASSERT_FALSE(trap1);
+    ASSERT_EQ(ret1.size(), 1);
+    EXPECT_EQ(ret1[0], 42);
+
+    const auto [trap2, ret2] = execute(instance, 1, {20});
+
+    ASSERT_FALSE(trap2);
+    ASSERT_EQ(ret2.size(), 1);
+    EXPECT_EQ(ret2[0], 400);
+
+    // check correct number of arguments is passed to host
+    auto count_args = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args.size()}};
+    };
+
+    auto instance_couner = instantiate(module, {count_args, count_args});
+
+    const auto [trap3, ret3] = execute(instance_couner, 0, {20, 22});
+
+    ASSERT_FALSE(trap3);
+    ASSERT_EQ(ret3.size(), 1);
+    EXPECT_EQ(ret3[0], 2);
+
+    const auto [trap4, ret4] = execute(instance_couner, 1, {20});
+
+    ASSERT_FALSE(trap4);
+    ASSERT_EQ(ret4.size(), 1);
+    EXPECT_EQ(ret4[0], 1);
+}
+
+TEST(execute, imported_two_functions_different_type)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32, ValType::i32}, {ValType::i32}});
+    module.typesec.emplace_back(FuncType{{ValType::i64}, {ValType::i64}});
+    module.importsec.emplace_back(Import{"mod", "foo1", ImportType::Function, {0}});
+    module.importsec.emplace_back(Import{"mod", "foo2", ImportType::Function, {0}});
+    module.codesec.emplace_back(Code{0, {Instr::i32_const, Instr::end}, {42, 0, 42, 0}});
+
+    auto host_foo1 = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args[0] + args[1]}};
+    };
+    auto host_foo2 = [](Instance&, std::vector<uint64_t> const& args) -> execution_result {
+        return {false, {args[0] * args[0]}};
+    };
+
+    auto instance = instantiate(module, {host_foo1, host_foo2});
+
+    const auto [trap1, ret1] = execute(instance, 0, {20, 22});
+
+    ASSERT_FALSE(trap1);
+    ASSERT_EQ(ret1.size(), 1);
+    EXPECT_EQ(ret1[0], 42);
+
+    const auto [trap2, ret2] = execute(instance, 1, {20});
+
+    ASSERT_FALSE(trap2);
+    ASSERT_EQ(ret2.size(), 1);
+    EXPECT_EQ(ret2[0], 400);
+
+    const auto [trap3, ret3] = execute(instance, 2, {20});
+
+    ASSERT_FALSE(trap3);
+    ASSERT_EQ(ret3.size(), 1);
+    EXPECT_EQ(ret3[0], 0x2a002a);
+}
+
+TEST(execute, imported_function_traps)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32, ValType::i32}, {ValType::i32}});
+    module.importsec.emplace_back(Import{"mod", "foo", ImportType::Function, {0}});
+
+    auto host_foo = [](Instance&, std::vector<uint64_t> const&) -> execution_result {
+        return {true, {}};
+    };
+
+    auto instance = instantiate(module, {host_foo});
+
+    const auto [trap, ret] = execute(instance, 0, {20, 22});
+
+    ASSERT_TRUE(trap);
 }
