@@ -1,6 +1,7 @@
 #include "execute.hpp"
 #include "stack.hpp"
 #include "types.hpp"
+#include <algorithm>
 #include <cassert>
 
 namespace fizzy
@@ -174,6 +175,14 @@ Instance instantiate(const Module& module, std::vector<ImportedFunction> importe
             throw std::runtime_error("global initialization by imported global is not supported");
         }
     }
+
+    const auto num_imported_functions =
+        std::count_if(module.importsec.begin(), module.importsec.end(),
+            [](const Import& import) { return import.kind == ImportKind::Function; });
+    if (static_cast<ptrdiff_t>(imported_functions.size()) != num_imported_functions)
+        throw std::runtime_error("Module requires " + std::to_string(num_imported_functions) +
+                                 " imported functions, " +
+                                 std::to_string(imported_functions.size()) + " provided");
 
     Instance instance = {
         module, std::move(memory), memory_max, std::move(globals), std::move(imported_functions)};
