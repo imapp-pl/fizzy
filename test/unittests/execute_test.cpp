@@ -1441,3 +1441,23 @@ TEST(execute, start_section)
     EXPECT_EQ(ret[0], 42);
     EXPECT_EQ(instance.memory.substr(0, 4), from_hex("2a000000"));
 }
+
+TEST(execute, data_section)
+{
+    Module module;
+    module.memorysec.emplace_back(Memory{{1, 1}});
+    module.codesec.emplace_back(
+        Code{0, {Instr::i32_const, Instr::i32_load, Instr::end}, {0, 0, 0, 0, 0, 0, 0, 0}});
+    // Memory contents: 0, 0xaa, 0xff, 0, ...
+    module.datasec.emplace_back(Data{MemIdx{0}, 1, {0xaa, 0xff}});
+    // Memory contents: 0, 0xaa, 0x55, 0x55, 0, ...
+    module.datasec.emplace_back(Data{MemIdx{0}, 2, {0x55, 0x55}});
+
+    auto instance = instantiate(module);
+    const auto [trap, ret] = execute(instance, 0, {});
+
+    ASSERT_FALSE(trap);
+    ASSERT_EQ(ret.size(), 1);
+    EXPECT_EQ(ret[0], 0x5555aa00);
+    EXPECT_EQ(instance.memory.substr(0, 6), from_hex("00aa55550000"));
+}
