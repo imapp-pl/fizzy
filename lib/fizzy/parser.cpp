@@ -99,7 +99,7 @@ struct parser<Import>
         std::tie(name, pos) = parser<std::vector<uint8_t>>{}(pos);
 
         Import result{};
-        result.module.assign(name.begin(), name.end());
+        result.module.assign(module.begin(), module.end());
         result.name.assign(name.begin(), name.end());
 
         const uint8_t type = *pos++;
@@ -122,7 +122,7 @@ struct parser<Import>
             std::tie(result.desc.global_mutable, pos) = parseGlobalType((pos));
             break;
         default:
-            throw parser_error{"unexpected export type value " + std::to_string(type)};
+            throw parser_error{"unexpected import type value " + std::to_string(type)};
         }
 
         return {result, pos};
