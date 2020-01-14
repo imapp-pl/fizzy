@@ -470,6 +470,19 @@ TEST(execute, i32_eqz)
     ASSERT_FALSE(result.trapped);
     ASSERT_EQ(result.stack.size(), 1);
     EXPECT_EQ(result.stack[0], 0);
+
+    // Dirty stack
+    result = execute_unary_operation(fizzy::Instr::i32_eqz, 0xff00000000);
+
+    ASSERT_FALSE(result.trapped);
+    ASSERT_EQ(result.stack.size(), 1);
+    EXPECT_EQ(result.stack[0], 1);
+
+    result = execute_unary_operation(fizzy::Instr::i32_eqz, 0xff00000001);
+
+    ASSERT_FALSE(result.trapped);
+    ASSERT_EQ(result.stack.size(), 1);
+    EXPECT_EQ(result.stack[0], 0);
 }
 
 TEST(execute, i32_eq)
@@ -715,6 +728,19 @@ TEST(execute, i64_eqz)
     EXPECT_EQ(result.stack[0], 1);
 
     result = execute_unary_operation(fizzy::Instr::i64_eqz, 1);
+
+    ASSERT_FALSE(result.trapped);
+    ASSERT_EQ(result.stack.size(), 1);
+    EXPECT_EQ(result.stack[0], 0);
+
+    // 64-bit value on the stack
+    result = execute_unary_operation(fizzy::Instr::i64_eqz, 0xff00000000);
+
+    ASSERT_FALSE(result.trapped);
+    ASSERT_EQ(result.stack.size(), 1);
+    EXPECT_EQ(result.stack[0], 0);
+
+    result = execute_unary_operation(fizzy::Instr::i64_eqz, 0xff00000001);
 
     ASSERT_FALSE(result.trapped);
     ASSERT_EQ(result.stack.size(), 1);
