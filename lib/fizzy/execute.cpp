@@ -177,18 +177,35 @@ Instance instantiate(const Module& module, std::vector<ImportedFunction> importe
     // NOTE: fill it with zeroes
     bytes memory(memory_min * page_size, 0);
 
-    // add imported globals first
+    // collect required info about imports
+    std::vector<TypeIdx> imported_function_types;
     std::vector<bool> imported_globals_mutability;
     for (auto const& import : module.importsec)
     {
-        if (import.type == ImportType::Global)
+        switch (import.type)
+        {
+        case ImportType::Function:
+            imported_function_types.emplace_back(import.desc.function_type_index);
+            break;
+        case ImportType::Global:
             imported_globals_mutability.emplace_back(import.desc.global_mutable);
+            break;
+        default:
+            throw std::runtime_error("Import of type " +
+                                     std::to_string(static_cast<uint8_t>(import.type)) +
+                                     " is not supported");
+        }
     }
+    if (imported_functions.size() != imported_function_types.size())
+        throw std::runtime_error(
+            "Module requires " + std::to_string(imported_function_types.size()) +
+            " imported functions, " + std::to_string(imported_functions.size()) + " provided");
     if (imported_globals.size() != imported_globals_mutability.size())
         throw std::runtime_error(
             "Module requires " + std::to_string(imported_globals_mutability.size()) +
             " imported globals, " + std::to_string(imported_globals.size()) + " provided");
 
+    // add imported globals first
     std::vector<uint64_t> globals = std::move(imported_globals);
     globals.reserve(globals.size() + module.globalsec.size());
     // init regular globals
@@ -209,17 +226,6 @@ Instance instantiate(const Module& module, std::vector<ImportedFunction> importe
             globals.emplace_back(globals[global_idx]);
         }
     }
-
-    std::vector<TypeIdx> imported_function_types;
-    for (auto const& import : module.importsec)
-    {
-        if (import.type == ImportType::Function)
-            imported_function_types.emplace_back(import.desc.function_type_index);
-    }
-    if (imported_functions.size() != imported_function_types.size())
-        throw std::runtime_error(
-            "Module requires " + std::to_string(imported_function_types.size()) +
-            " imported functions, " + std::to_string(imported_functions.size()) + " provided");
 
     Instance instance = {module, std::move(memory), memory_max, std::move(globals),
         std::move(imported_functions), std::move(imported_function_types),
