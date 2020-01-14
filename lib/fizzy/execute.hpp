@@ -27,6 +27,7 @@ struct Instance
     size_t memory_max_pages = 0;
     std::vector<uint64_t> globals;
     std::vector<ImportedFunction> imported_functions;
+    std::vector<TypeIdx> imported_function_types;
 };
 
 // Instantiate a module.
