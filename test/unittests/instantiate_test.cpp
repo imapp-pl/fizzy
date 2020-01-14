@@ -9,6 +9,56 @@ namespace
 constexpr unsigned page_size = 65536;
 }
 
+TEST(instantiate, imported_functions)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32}, {ValType::i32}});
+    module.importsec.emplace_back(Import{"mod", "foo", ImportKind::Function, {0}});
+
+    auto host_foo = [](Instance&, const std::vector<uint64_t>&) -> execution_result {
+        return {true, {}};
+    };
+    auto instance = instantiate(module, {host_foo});
+
+    ASSERT_EQ(instance.imported_functions.size(), 1);
+    EXPECT_EQ(instance.imported_functions[0], host_foo);
+    ASSERT_EQ(instance.imported_function_types.size(), 1);
+    EXPECT_EQ(instance.imported_function_types[0], TypeIdx{0});
+}
+
+TEST(instantiate, imported_functions_multiple)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32}, {ValType::i32}});
+    module.typesec.emplace_back(FuncType{{}, {}});
+    module.importsec.emplace_back(Import{"mod", "foo1", ImportKind::Function, {0}});
+    module.importsec.emplace_back(Import{"mod", "foo2", ImportKind::Function, {1}});
+
+    auto host_foo1 = [](Instance&, const std::vector<uint64_t>&) -> execution_result {
+        return {true, {0}};
+    };
+    auto host_foo2 = [](Instance&, const std::vector<uint64_t>&) -> execution_result {
+        return {true, {}};
+    };
+    auto instance = instantiate(module, {host_foo1, host_foo2});
+
+    ASSERT_EQ(instance.imported_functions.size(), 2);
+    EXPECT_EQ(instance.imported_functions[0], host_foo1);
+    EXPECT_EQ(instance.imported_functions[1], host_foo2);
+    ASSERT_EQ(instance.imported_function_types.size(), 2);
+    EXPECT_EQ(instance.imported_function_types[0], TypeIdx{0});
+    EXPECT_EQ(instance.imported_function_types[1], TypeIdx{1});
+}
+
+TEST(instantiate, imported_functions_not_enough)
+{
+    Module module;
+    module.typesec.emplace_back(FuncType{{ValType::i32}, {ValType::i32}});
+    module.importsec.emplace_back(Import{"mod", "foo", ImportKind::Function, {0}});
+
+    EXPECT_THROW(instantiate(module, {}), std::runtime_error);
+}
+
 TEST(instantiate, memory_default)
 {
     Module module;
