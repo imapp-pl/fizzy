@@ -18,7 +18,7 @@ TEST(instantiate, imported_functions)
     auto host_foo = [](Instance&, const std::vector<uint64_t>&) -> execution_result {
         return {true, {}};
     };
-    auto instance = instantiate(module, {host_foo});
+    auto instance = instantiate(module, {host_foo}, {});
 
     ASSERT_EQ(instance.imported_functions.size(), 1);
     EXPECT_EQ(instance.imported_functions[0], host_foo);
@@ -40,7 +40,7 @@ TEST(instantiate, imported_functions_multiple)
     auto host_foo2 = [](Instance&, const std::vector<uint64_t>&) -> execution_result {
         return {true, {}};
     };
-    auto instance = instantiate(module, {host_foo1, host_foo2});
+    auto instance = instantiate(module, {host_foo1, host_foo2}, {});
 
     ASSERT_EQ(instance.imported_functions.size(), 2);
     EXPECT_EQ(instance.imported_functions[0], host_foo1);
@@ -56,14 +56,14 @@ TEST(instantiate, imported_functions_not_enough)
     module.typesec.emplace_back(FuncType{{ValType::i32}, {ValType::i32}});
     module.importsec.emplace_back(Import{"mod", "foo", ImportType::Function, {0}});
 
-    EXPECT_THROW(instantiate(module, {}), std::runtime_error);
+    EXPECT_THROW(instantiate(module, {}, {}), std::runtime_error);
 }
 
 TEST(instantiate, memory_default)
 {
     Module module;
 
-    auto instance = instantiate(module, {});
+    auto instance = instantiate(module, {}, {});
 
     ASSERT_EQ(instance.memory.size(), 0);
     EXPECT_EQ(instance.memory_max_pages * page_size, 256 * 1024 * 1024);
@@ -74,7 +74,7 @@ TEST(instantiate, memory_single)
     Module module;
     module.memorysec.emplace_back(Memory{{1, 1}});
 
-    auto instance = instantiate(module, {});
+    auto instance = instantiate(module, {}, {});
 
     ASSERT_EQ(instance.memory.size(), page_size);
     EXPECT_EQ(instance.memory_max_pages, 1);
@@ -85,7 +85,7 @@ TEST(instantiate, memory_single_unspecified_maximum)
     Module module;
     module.memorysec.emplace_back(Memory{{1, std::nullopt}});
 
-    auto instance = instantiate(module, {});
+    auto instance = instantiate(module, {}, {});
 
     ASSERT_EQ(instance.memory.size(), page_size);
     EXPECT_EQ(instance.memory_max_pages * page_size, 256 * 1024 * 1024);
@@ -96,7 +96,7 @@ TEST(instantiate, memory_single_large_minimum)
     Module module;
     module.memorysec.emplace_back(Memory{{(1024 * 1024 * 1024) / page_size, std::nullopt}});
 
-    EXPECT_THROW(instantiate(module, {}), std::runtime_error);
+    EXPECT_THROW(instantiate(module, {}, {}), std::runtime_error);
 }
 
 TEST(instantiate, memory_single_large_maximum)
@@ -104,7 +104,7 @@ TEST(instantiate, memory_single_large_maximum)
     Module module;
     module.memorysec.emplace_back(Memory{{1, (1024 * 1024 * 1024) / page_size}});
 
-    EXPECT_THROW(instantiate(module, {}), std::runtime_error);
+    EXPECT_THROW(instantiate(module, {}, {}), std::runtime_error);
 }
 
 TEST(instantiate, memory_multiple)
@@ -113,7 +113,7 @@ TEST(instantiate, memory_multiple)
     module.memorysec.emplace_back(Memory{{1, 1}});
     module.memorysec.emplace_back(Memory{{1, 1}});
 
-    EXPECT_THROW(instantiate(module, {}), std::runtime_error);
+    EXPECT_THROW(instantiate(module, {}, {}), std::runtime_error);
 }
 
 TEST(instantiate, globals_single)
@@ -121,7 +121,7 @@ TEST(instantiate, globals_single)
     Module module;
     module.globalsec.emplace_back(Global{true, GlobalInitType::constant, {42}});
 
-    auto instance = instantiate(module, {});
+    auto instance = instantiate(module, {}, {});
 
     ASSERT_EQ(instance.globals.size(), 1);
     EXPECT_EQ(instance.globals[0], 42);
@@ -133,7 +133,7 @@ TEST(instantiate, globals_multiple)
     module.globalsec.emplace_back(Global{true, GlobalInitType::constant, {42}});
     module.globalsec.emplace_back(Global{false, GlobalInitType::constant, {43}});
 
-    auto instance = instantiate(module, {});
+    auto instance = instantiate(module, {}, {});
 
     ASSERT_EQ(instance.globals.size(), 2);
     EXPECT_EQ(instance.globals[0], 42);
