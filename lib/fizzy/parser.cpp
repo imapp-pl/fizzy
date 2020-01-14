@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "leb128.hpp"
+#include "types.hpp"
 #include <cassert>
 
 namespace fizzy
@@ -21,21 +22,27 @@ struct parser<FuncType>
     }
 };
 
+std::tuple<bool, const uint8_t*> parseGlobalType(const uint8_t* pos)
+{
+    // will throw if invalid type
+    std::tie(std::ignore, pos) = parser<ValType>{}(pos);
+
+    if (*pos != 0x00 && *pos != 0x01)
+        throw parser_error{"unexpected byte value " + std::to_string(*pos) +
+                           ", expected 0x00 or 0x01 for global mutability"};
+    const bool is_mutable = (*pos == 0x01);
+    ++pos;
+    return {is_mutable, pos};
+}
+
+
 template <>
 struct parser<Global>
 {
     parser_result<Global> operator()(const uint8_t* pos)
     {
-        ValType type;
-        std::tie(type, pos) = parser<ValType>{}(pos);
-
-        if (*pos != 0x00 && *pos != 0x01)
-            throw parser_error{"unexpected byte value " + std::to_string(*pos) +
-                               ", expected 0x00 or 0x01 for global mutability"};
-
         Global result;
-        result.is_mutable = (*pos == 0x01);
-        ++pos;
+        std::tie(result.is_mutable, pos) = parseGlobalType((pos));
 
         Instr instr;
         do
@@ -76,6 +83,47 @@ struct parser<Global>
             }
             }
         } while (instr != Instr::end);
+
+        return {result, pos};
+    }
+};
+
+template <>
+struct parser<Import>
+{
+    parser_result<Import> operator()(const uint8_t* pos)
+    {
+        std::vector<uint8_t> module;
+        std::tie(module, pos) = parser<std::vector<uint8_t>>{}(pos);
+        std::vector<uint8_t> name;
+        std::tie(name, pos) = parser<std::vector<uint8_t>>{}(pos);
+
+        Import result{};
+        result.module.assign(name.begin(), name.end());
+        result.name.assign(name.begin(), name.end());
+
+        const uint8_t type = *pos++;
+        switch (type)
+        {
+        case 0x00:
+            result.type = ImportType::Function;
+            std::tie(result.desc.function_type_index, pos) = leb128u_decode<uint32_t>(pos);
+            break;
+        case 0x01:
+            result.type = ImportType::Table;
+            throw parser_error{"importing Tables is not implemented"};
+            break;
+        case 0x02:
+            result.type = ImportType::Memory;
+            std::tie(result.desc.memory, pos) = parser<Memory>{}(pos);
+            break;
+        case 0x03:
+            result.type = ImportType::Global;
+            std::tie(result.desc.global_mutable, pos) = parseGlobalType((pos));
+            break;
+        default:
+            throw parser_error{"unexpected export type value " + std::to_string(type)};
+        }
 
         return {result, pos};
     }
@@ -136,6 +184,9 @@ Module parse(bytes_view input)
         case SectionId::type:
             std::tie(module.typesec, it) = parser<std::vector<FuncType>>{}(it);
             break;
+        case SectionId::import:
+            std::tie(module.importsec, it) = parser<std::vector<Import>>{}(it);
+            break;
         case SectionId::function:
             std::tie(module.funcsec, it) = parser<std::vector<TypeIdx>>{}(it);
             break;
@@ -155,7 +206,6 @@ Module parse(bytes_view input)
             std::tie(module.codesec, it) = parser<std::vector<Code>>{}(it);
             break;
         case SectionId::custom:
-        case SectionId::import:
         case SectionId::table:
         case SectionId::element:
         case SectionId::data:

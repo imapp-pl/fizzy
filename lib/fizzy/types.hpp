@@ -155,6 +155,29 @@ struct Global
     } init;
 };
 
+enum class ImportType : uint8_t
+{
+    Function = 0x00,
+    Table = 0x01,
+    Memory = 0x02,
+    Global = 0x03
+};
+
+// https://webassembly.github.io/spec/core/binary/modules.html#import-section
+struct Import
+{
+    std::string module;
+    std::string name;
+    ImportType type = ImportType::Function;
+    union
+    {
+        TypeIdx function_type_index = 0;
+        Memory memory;
+        bool global_mutable;
+        // TODO: table
+    } desc;
+};
+
 enum class ExportType : uint8_t
 {
     Function = 0x00,
@@ -206,6 +229,8 @@ struct Module
 {
     // https://webassembly.github.io/spec/core/binary/modules.html#type-section
     std::vector<FuncType> typesec;
+    // https://webassembly.github.io/spec/core/binary/modules.html#import-section
+    std::vector<Import> importsec;
     // https://webassembly.github.io/spec/core/binary/modules.html#function-section
     std::vector<TypeIdx> funcsec;
     // https://webassembly.github.io/spec/core/binary/modules.html#memory-section
