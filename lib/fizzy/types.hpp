@@ -197,7 +197,7 @@ struct Code
 struct Data
 {
     MemIdx memidx;
-    unsigned offset;
+    ConstantExpression offset;
     bytes init;
 };
 

@@ -138,8 +138,8 @@ struct parser<Data>
         MemIdx memidx;
         std::tie(memidx, pos) = leb128u_decode<uint32_t>(pos);
 
-        unsigned offset;
-        std::tie(offset, pos) = leb128u_decode<uint32_t>(pos);
+        ConstantExpression offset;
+        std::tie(offset, pos) = parser<ConstantExpression>{}(pos);
 
         std::vector<uint8_t> init;
         std::tie(init, pos) = parser<std::vector<uint8_t>>{}(pos);

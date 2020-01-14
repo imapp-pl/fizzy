@@ -162,11 +162,17 @@ Instance instantiate(const Module& module)
     // Fill out memory based on data segments
     for (const auto& data : module.datasec)
     {
+        uint64_t offset;
+        if (data.offset.kind == ConstantExpression::Kind::Constant)
+            offset = data.offset.value.constant;
+        else
+            throw std::runtime_error("data initialization by imported global is not supported yet");
+
         // FIXME: assert in parser
         assert(data.memidx == 0);
         // NOTE: these instructions can overlap
-        assert((data.offset + data.init.size()) <= (memory_max * page_size));
-        std::memcpy(memory.data() + data.offset, data.init.data(), data.init.size());
+        assert((offset + data.init.size()) <= (memory_max * page_size));
+        std::memcpy(memory.data() + offset, data.init.data(), data.init.size());
     }
 
     // TODO: add imported globals first
@@ -181,7 +187,8 @@ Instance instantiate(const Module& module)
             // TODO: initialize by imported global
             // Wasm spec section 3.3.7 constrains initialization by another global to imports only
             // https://webassembly.github.io/spec/core/valid/instructions.html#expressions
-            throw std::runtime_error("global initialization by imported global is not supported");
+            throw std::runtime_error(
+                "global initialization by imported global is not supported yet");
         }
     }
 
